@@ -5,8 +5,10 @@ import {
   CameraSource,
   Photo,
 } from '@capacitor/camera';
+import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Storage } from '@capacitor/storage';
+import { Platform } from '@ionic/angular';
 
 import { UserPhoto } from './photo.interface';
 
@@ -17,18 +19,20 @@ export class PhotoService {
   public photos: UserPhoto[] = [];
   // eslint-disable-next-line @typescript-eslint/naming-convention
   private PHOTO_STORAGE = 'photos';
+  private platform: Platform;
 
   public async loadSavedPhotos() {
     const photList = await Storage.get({ key: this.PHOTO_STORAGE });
     this.photos = JSON.parse(photList.value) || [];
+    if (!this.platform.is('hybrid')) {
+      for (const photo of this.photos) {
+        const readFile = await Filesystem.readFile({
+          path: photo.filepath,
+          directory: Directory.Data,
+        });
 
-    for (const photo of this.photos) {
-      const readFile = await Filesystem.readFile({
-        path: photo.filepath,
-        directory: Directory.Data,
-      });
-
-      photo.webviewPath = `data:image/jpeg;base64,${readFile.data}`;
+        photo.webviewPath = `data:image/jpeg;base64,${readFile.data}`;
+      }
     }
   }
 
@@ -57,19 +61,31 @@ export class PhotoService {
       data: base64Data,
       directory: Directory.Data,
     });
-
-    return {
-      filepath: fileName,
-      webviewPath: photo.webPath,
-    };
+    if (this.platform.is('hybrid')) {
+      return {
+        filepath: savedFile.uri,
+        webviewPath: Capacitor.convertFileSrc(savedFile.uri),
+      };
+    } else {
+      return {
+        filepath: fileName,
+        webviewPath: photo.webPath,
+      };
+    }
   }
 
   private async readAsBase64(photo: Photo) {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const response = await fetch(photo.webPath!);
-    const blob = await response.blob();
+    if (this.platform.is('hybrid')) {
+      const file = await Filesystem.readFile({
+        path: photo.path,
+      });
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const response = await fetch(photo.webPath!);
+      const blob = await response.blob();
 
-    return (await this.convertBlobToBase64(blob)) as string;
+      return (await this.convertBlobToBase64(blob)) as string;
+    }
   }
 
   private convertBlobToBase64 = (blob: Blob) =>
