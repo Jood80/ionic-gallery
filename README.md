@@ -2,7 +2,7 @@
 
 ### How to run 
 - Install Ionic if needed: `npm install -g @ionic/cli`
-- Clone this repository.
+- Clone this repository: `git clone https://github.com/Jood80/ionic-gallery.git`.
 - In a terminal, change directory into the repo: `cd ionic-gallery`
 - Install all packages: `npm install`.
 - Run on the web: `ionic serve`.
